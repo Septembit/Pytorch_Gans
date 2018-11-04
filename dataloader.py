@@ -1,22 +1,15 @@
-from keras.datasets import cifar10
-from keras.preprocessing.image import ImageDataGenerator
+import torch
+import torchvision
+import torchvision.transforms as transforms
 
+def CIFAR(batch_size=32):
 
+    transform = transforms.Compose(
+        [transforms.ToTensor(),
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
-def Data():
-    (x_train, _), (_, _ )= cifar10.load_data()
-    datagen = ImageDataGenerator(
-            featurewise_center=True,
-            featurewise_std_normalization=True,
-            rotation_range=20,
-            width_shift_range=0.2,
-            height_shift_range=0.2,
-            horizontal_flip=True)
-
-    return datagen.fit(x_train)
-
-
-
-
-
-
+    trainset = torchvision.datasets.CIFAR10(root='/home/yachao-li/Downloads/CIFAR', train=True,
+                                         transform=transform)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
+                                          shuffle=True, num_workers=4)
+    return trainloader
