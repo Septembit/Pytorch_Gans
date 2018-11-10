@@ -9,47 +9,76 @@ class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
 
-        self.dis = nn.Sequential(
-
-            nn.Linear(3072, 1024),
-            nn.LeakyReLU(0.2),
-            nn.Linear(1024, 512),
-            nn.LeakyReLU(0.2),
-            nn.Linear(512,1),
-            nn.Sigmoid()
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(3,64,3,padding=1),
+            nn.LeakyReLU(0.2, True),
+            nn.AvgPool2d(2, 2)
             )
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(64, 128, 3, padding=1),
+            nn.LeakyReLU(0.2, True),
+            nn.AvgPool2d(2, 2)
+        )
+        self.conv3 = nn.Sequential(
+            nn.Conv2d(128, 256, 3, padding=1),
+            nn.LeakyReLU(0.2, True),
+            nn.AvgPool2d(2, 2)
+        )
+        self.fc = nn.Sequential(
+
+            nn.Linear(256*4*4,1024),
+            nn.LeakyReLU(0.2, True),
+            nn.Linear(1024,1),
+            nn.Sigmoid())
     def forward(self, x):
-        x = self.dis(x)
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.conv3(x)
+        x = x.view(64,-1)
+
+        x = self.fc(x)
+
 
         return x
 
 class Generator(nn.Module):
-    def __init__(self, input_dim):
+    def __init__(self):
         super(Generator, self).__init__()
 
-        self.gen = nn.Sequential(
-            nn.Linear(input_dim,512),
-            nn.LeakyReLU(0.2),
-            nn.Linear(512, 1024),
-            nn.LeakyReLU(0.2),
-            nn.Linear(1024, 3072),
-            nn.Tanh()
-            )
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(3, 128, 3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2, True))
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(128, 256, 3, padding=1),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2, True))
+        self.conv3 = nn.Sequential(
+            nn.Conv2d(256, 128, 3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2, True))
+        self.conv4 = nn.Sequential(
+            nn.Conv2d(128, 3, 3, padding=1),
+            nn.BatchNorm2d(3),
+            nn.LeakyReLU(0.2, True))
 
     def forward(self, x):
-        x = self.gen(x)
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.conv3(x)
+        x = self.conv4(x)
 
         return x
 
 
-def main(epochs=100, bach_size=64, z_dim=128 ):
+def main(epochs=100, bach_size=64 ):
 
 
 
     data_loader = CIFAR(batch_size=bach_size)
     criterion = nn.BCELoss().cuda()
     D_net = Discriminator().cuda()
-    G_net = Generator(z_dim).cuda()
+    G_net = Generator().cuda()
     d_optimizer = torch.optim.RMSprop(D_net.parameters(), lr=0.0001)
     g_optimizer = torch.optim.RMSprop(G_net.parameters(), lr=0.0001)
 
@@ -62,7 +91,7 @@ def main(epochs=100, bach_size=64, z_dim=128 ):
 
     # Training the discriminator
 
-            data[0] = data[0].view(-1,3072)
+
 
             real_img = Variable(data[0]).cuda()
 
@@ -74,7 +103,7 @@ def main(epochs=100, bach_size=64, z_dim=128 ):
 
             d_loss_real = criterion(real_out, real_label)
 
-            z = Variable(torch.randn(bach_size, z_dim)).cuda()
+            z = Variable(torch.randn_like(real_img)).cuda()
 
             fake_img = G_net(z)
 
@@ -88,7 +117,7 @@ def main(epochs=100, bach_size=64, z_dim=128 ):
             d_loss.backward()
             d_optimizer.step()
     # Training the generator
-            z = Variable(torch.randn(bach_size, z_dim)).cuda()
+            z = Variable(torch.randn_like(real_img)).cuda()
             fake_img = G_net(z)
             output = D_net(fake_img)
             g_loss = criterion(output, real_label)
@@ -101,8 +130,8 @@ def main(epochs=100, bach_size=64, z_dim=128 ):
             ge_loss.append(g_loss)
             #print("Loss at iteration", i + 1, "/", len(data_loader), ":G loss", g_loss.item(), "D loss", d_loss.item())
             if i % 1000 == 0:
-                #print(fake_img.size())
-                fake_img = fake_img.view([bach_size, 3, 32, 32])
+                print(fake_img.size())
+                #fake_img = fake_img.view([16, 3, 32, 32])
                 torchvision.utils.save_image((fake_img), 'samples/' + str(i + 1) + '.jpg', normalize=True)
         de_loss = sum(de_loss)/len(de_loss)
         ge_loss = sum(ge_loss) / len(ge_loss)

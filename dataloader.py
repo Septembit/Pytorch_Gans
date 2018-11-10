@@ -11,5 +11,5 @@ def CIFAR(batch_size=32):
     trainset = torchvision.datasets.CIFAR10(root='/home/yachao-li/Downloads/CIFAR', train=True,
                                          transform=transform)
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
-                                          shuffle=True, num_workers=4)
+                                          shuffle=True, num_workers=4,drop_last=True)
     return trainloader
