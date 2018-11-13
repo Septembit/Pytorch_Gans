@@ -105,6 +105,8 @@ def main():
     criterion = nn.BCELoss().cuda()
     D_net = Discriminator(ndf=opt.ndf,ngpu=1).cuda()
     G_net = Generator(ngf=opt.ngf,ngpu=1,nz=opt.nz).cuda()
+    G_net.apply(weights_init)
+    D_net.apply(weights_init)
     d_optimizer = torch.optim.Adam(D_net.parameters(), lr=opt.lr, betas=(opt.beta1,0.999))
     g_optimizer = torch.optim.Adam(G_net.parameters(), lr=opt.lr, betas=(opt.beta1,0.999))
 
