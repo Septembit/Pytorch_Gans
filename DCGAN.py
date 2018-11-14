@@ -1,4 +1,4 @@
-#Based on the paper ﻿Generative-Adversarial-Nets
+#Based on the paper Deep Convolution ﻿Generative-Adversarial-Nets
 
 import torch
 from torch import nn
@@ -6,7 +6,8 @@ from dataloader import CIFAR
 from torch.autograd import Variable
 import torchvision
 import argparse
-
+import visdom
+import numpy as np
 def weights_init(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
@@ -45,6 +46,7 @@ class Discriminator(nn.Module):
         if input.is_cuda and self.ngpu > 1:
             output = nn.parallel.data_parallel(self.main, input, range(self.ngpu))
         else:
+
             output = self.main(input)
 
         return output.view(-1, 1).squeeze(1)
@@ -57,7 +59,7 @@ class Generator(nn.Module):
         self.main = nn.Sequential(
             # input is Z, going into a convolution
             nn.ConvTranspose2d(nz, ngf * 8, 4, 1, 0, bias=False),
-            nn.BatchNorm2d(self.ngf * 8),
+            nn.BatchNorm2d(ngf * 8),
             nn.ReLU(True),
             # state size. (ngf*8) x 4 x 4
             nn.ConvTranspose2d(ngf * 8, ngf * 4, 4, 2, 1, bias=False),
@@ -87,12 +89,11 @@ class Generator(nn.Module):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--batchsize', type=int, default=32, help='input batch size')
-    parser.add_argument('--imageSize', type=int, default=64, help='the height / width of the input image to network')
-    parser.add_argument('--nz', type=int, default=100, help='size of the latent z vector')
+    parser.add_argument('--nz', type=int, default=64, help='size of the latent z vector')
     parser.add_argument('--ngf', type=int, default=64)
     parser.add_argument('--ndf', type=int, default=64)
-    parser.add_argument('--epoch', type=int, default=25, help='number of epochs to train for')
-    parser.add_argument('--lr', type=float, default=0.0002, help='learning rate, default=0.0002')
+    parser.add_argument('--epoch', type=int, default=100, help='number of epochs to train for')
+    parser.add_argument('--lr', type=float, default=0.0001, help='learning rate, default=0.0002')
     parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam. default=0.5')
 
     parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs to use')
@@ -100,17 +101,26 @@ def main():
 
     opt = parser.parse_args()
     print(opt)
+    #visualization By Visdom
+    vis = visdom.Visdom()
+    lineg = vis.line(Y=np.arange(10), env="G_Loss")
+    lined = vis.line(Y=np.arange(10), env="D_Loss")
 
-    data_loader = CIFAR(batch_size=opt.bachsize)
+
+
+    #load data and initialize the networks and optimizers
+    data_loader = CIFAR(batch_size=opt.batchsize)
     criterion = nn.BCELoss().cuda()
     D_net = Discriminator(ndf=opt.ndf,ngpu=1).cuda()
     G_net = Generator(ngf=opt.ngf,ngpu=1,nz=opt.nz).cuda()
     G_net.apply(weights_init)
     D_net.apply(weights_init)
     d_optimizer = torch.optim.Adam(D_net.parameters(), lr=opt.lr, betas=(opt.beta1,0.999))
-    g_optimizer = torch.optim.Adam(G_net.parameters(), lr=opt.lr, betas=(opt.beta1,0.999))
+    g_optimizer = torch.optim.Adam(G_net.parameters(), lr=opt.lr, betas=(0.9,0.999))
 
     epochs=opt.epoch
+    G_loss = []
+    D_loss = []
     for epoch in range(epochs):
         ge_loss = []
         de_loss = []
@@ -121,15 +131,15 @@ def main():
             d_optimizer.zero_grad()
             real_img = Variable(data[0]).cuda()
 
-            real_label = Variable(torch.ones(opt.bachsize)).cuda()
+            real_label = Variable(torch.ones(opt.batchsize)).cuda()
 
-            fake_label = Variable(torch.zeros(opt.bachsize)).cuda()
+            fake_label = Variable(torch.zeros(opt.batchsize)).cuda()
 
             real_out = D_net(real_img)
 
             d_loss_real = criterion(real_out, real_label)
 
-            z = Variable(torch.randn(opt.batchSize, opt.nz, 1, 1,)).cuda()
+            z = Variable(torch.randn(opt.batchsize, opt.nz, 1, 1,)).cuda()
 
             fake_img = G_net(z)
 
@@ -145,7 +155,7 @@ def main():
     # Training the generator
             g_optimizer.zero_grad()
 
-            z = Variable(torch.randn(opt.batchSize, opt.nz, 1, 1, )).cuda()
+            z = Variable(torch.randn(opt.batchsize, opt.nz, 1, 1, )).cuda()
             fake_img = G_net(z)
             output = D_net(fake_img)
             g_loss = criterion(output, real_label)
@@ -156,12 +166,25 @@ def main():
             de_loss.append(d_loss)
             ge_loss.append(g_loss)
             #print("Loss at iteration", i + 1, "/", len(data_loader), ":G loss", g_loss.item(), "D loss", d_loss.item())
+
+            #save fake iamges and visulization data
             if i % 1000 == 0:
                 print(fake_img.size())
-                #fake_img = fake_img.view([16, 3, 32, 32])
                 torchvision.utils.save_image((fake_img), 'samples/' + str(i + 1) + '.jpg', normalize=True)
+                torchvision.utils.save_image((real_img), 'samples/' + str(i + 1) + 'gt.jpg', normalize=True)
         de_loss = sum(de_loss)/len(de_loss)
         ge_loss = sum(ge_loss) / len(ge_loss)
+
+
+        D_loss.append(de_loss.item())
+        G_loss.append(ge_loss.item())
+        vis.line(Y= np.array(G_loss), X= np.arange(len(G_loss)),
+                  opts=dict( title="G_loss"),update="new", win=lineg,
+                 env="G_Loss")
+
+        vis.line(Y=np.array(D_loss),X= np.arange(len(D_loss)),
+                  opts=dict(title="D_loss"),update="new", win=lined,
+                 env="D_Loss")
         print("Loss at Epoch", epoch+1, "/", epochs,":G loss", ge_loss.item(), "D loss", de_loss.item() )
 
 
