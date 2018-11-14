@@ -12,6 +12,7 @@ famous gans with Pytorch(0.4.1).
 
 1. ### Standard Gan 
 [Code](https://github.com/Septembit/Pytorch_Gans/blob/master/StandardGan.py)   [Paper](https://papers.nips.cc/paper/5423-generative-adversarial-nets.pdf)
+
 This is the most basic gans, which is implemented by only linear neural networks.
 
 2. ### Deep Convolutional Gan(DCGAN)
