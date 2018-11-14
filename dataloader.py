@@ -16,3 +16,18 @@ def CIFAR(batch_size=32):
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
                                           shuffle=True, num_workers=4,drop_last=True)
     return trainloader
+
+def MINIST(batch_size=32):
+    transform = transforms.Compose(
+        [ transforms.Resize(72),
+        transforms.CenterCrop(64),
+        transforms.ToTensor(),
+
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+
+    trainset = torchvision.datasets.MNIST(root='/home/yachao-li/Downloads/MINIST', train=True, download=True,
+                                         transform=transform)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
+                                          shuffle=True, num_workers=4,drop_last=True)
+    return trainloader
+

@@ -2,7 +2,7 @@
 
 import torch
 from torch import nn
-from dataloader import CIFAR
+from dataloader import CIFAR, MINIST
 from torch.autograd import Variable
 import torchvision
 import argparse
@@ -18,12 +18,12 @@ def weights_init(m):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, ngpu,ndf):
+    def __init__(self, ngpu,ndf, nc):
         super(Discriminator, self).__init__()
         self.ngpu = ngpu
         self.main = nn.Sequential(
             # input is (nc) x 64 x 64
-            nn.Conv2d(3, ndf, 4, 2, 1, bias=False),
+            nn.Conv2d(nc, ndf, 4, 2, 1, bias=False),
             nn.LeakyReLU(0.2, inplace=True),
             # state size. (ndf) x 32 x 32
             nn.Conv2d(ndf, ndf * 2, 4, 2, 1, bias=False),
@@ -52,7 +52,7 @@ class Discriminator(nn.Module):
         return output.view(-1, 1).squeeze(1)
 
 class Generator(nn.Module):
-    def __init__(self, ngpu,ngf,nz):
+    def __init__(self, ngpu,ngf,nz, nc):
         super(Generator, self).__init__()
         self.ngpu = ngpu
 
@@ -74,7 +74,7 @@ class Generator(nn.Module):
             nn.BatchNorm2d(ngf),
             nn.ReLU(True),
             # state size. (ngf) x 32 x 32
-            nn.ConvTranspose2d(    ngf,   3, 4, 2, 1, bias=False),
+            nn.ConvTranspose2d(    ngf,   nc, 4, 2, 1, bias=False),
             nn.Tanh()
             # state size. (nc) x 64 x 64
         )
@@ -95,7 +95,7 @@ def main():
     parser.add_argument('--epoch', type=int, default=100, help='number of epochs to train for')
     parser.add_argument('--lr', type=float, default=0.0001, help='learning rate, default=0.0002')
     parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam. default=0.5')
-
+    parser.add_argument("--data", type=str, default="MINIST", help="dataset used to train" )
     parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs to use')
 
 
@@ -109,10 +109,15 @@ def main():
 
 
     #load data and initialize the networks and optimizers
-    data_loader = CIFAR(batch_size=opt.batchsize)
+    if opt.data == "CIFAR":
+        data_loader = CIFAR(batch_size=opt.batchsize)
+        nc = 3
+    else:
+        data_loader = MINIST(batch_size=opt.batchsize)
+        nc = 1
     criterion = nn.BCELoss().cuda()
-    D_net = Discriminator(ndf=opt.ndf,ngpu=1).cuda()
-    G_net = Generator(ngf=opt.ngf,ngpu=1,nz=opt.nz).cuda()
+    D_net = Discriminator(ndf=opt.ndf,ngpu=1, nc=nc).cuda()
+    G_net = Generator(ngf=opt.ngf,ngpu=1,nz=opt.nz, nc=nc).cuda()
     G_net.apply(weights_init)
     D_net.apply(weights_init)
     d_optimizer = torch.optim.Adam(D_net.parameters(), lr=opt.lr, betas=(opt.beta1,0.999))
