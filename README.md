@@ -22,8 +22,12 @@ This is the most basic gans, which is implemented by only linear neural networks
    Dataset is CIFAR10 and MINIST respectively.
 
 (1) CIFAR10
+
+
 ![Have to say, it is really hard to generate perfect images](https://github.com/Septembit/Pytorch_Gans/blob/master/images/DCGAN_cifar.jpg)
 
+
 ![the loss of discriminator](https://github.com/Septembit/Pytorch_Gans/blob/master/images/DCGAN_cifar_Dloss.png)
+
 
 ![the loss of generator](https://github.com/Septembit/Pytorch_Gans/blob/master/images/DCGAN_cifar_Gloss.png)
