@@ -19,5 +19,5 @@ This is the most basic gans, which is implemented by only linear neural networks
 [Code](https://github.com/Septembit/Pytorch_Gans/blob/master/DCGAN.py)   [Paper](https://arxiv.org/abs/1511.06434)
 
    #### Results
-   Dadaset is CIFAR10.
+   Dataset is CIFAR10.
    
