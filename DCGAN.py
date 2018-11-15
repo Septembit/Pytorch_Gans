@@ -8,6 +8,7 @@ import torchvision
 import argparse
 import visdom
 import numpy as np
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 def weights_init(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
@@ -115,9 +116,9 @@ def main():
     else:
         data_loader = MINIST(batch_size=opt.batchsize)
         nc = 1
-    criterion = nn.BCELoss().cuda()
-    D_net = Discriminator(ndf=opt.ndf,ngpu=1, nc=nc).cuda()
-    G_net = Generator(ngf=opt.ngf,ngpu=1,nz=opt.nz, nc=nc).cuda()
+    criterion = nn.BCELoss().to(device)
+    D_net = Discriminator(ndf=opt.ndf,ngpu=1, nc=nc).to(device)
+    G_net = Generator(ngf=opt.ngf,ngpu=1,nz=opt.nz, nc=nc).to(device)
     G_net.apply(weights_init)
     D_net.apply(weights_init)
     d_optimizer = torch.optim.Adam(D_net.parameters(), lr=opt.lr, betas=(opt.beta1,0.999))
@@ -134,17 +135,17 @@ def main():
     # Training the discriminator
 
             d_optimizer.zero_grad()
-            real_img = Variable(data[0]).cuda()
+            real_img = Variable(data[0]).to(device)
 
-            real_label = Variable(torch.ones(opt.batchsize)).cuda()
+            real_label = Variable(torch.ones(opt.batchsize)).to(device)
 
-            fake_label = Variable(torch.zeros(opt.batchsize)).cuda()
+            fake_label = Variable(torch.zeros(opt.batchsize)).to(device)
 
             real_out = D_net(real_img)
 
             d_loss_real = criterion(real_out, real_label)
 
-            z = Variable(torch.randn(opt.batchsize, opt.nz, 1, 1,)).cuda()
+            z = Variable(torch.randn(opt.batchsize, opt.nz, 1, 1,)).to(device)
 
             fake_img = G_net(z)
 
@@ -160,7 +161,7 @@ def main():
     # Training the generator
             g_optimizer.zero_grad()
 
-            z = Variable(torch.randn(opt.batchsize, opt.nz, 1, 1, )).cuda()
+            z = Variable(torch.randn(opt.batchsize, opt.nz, 1, 1, )).to(device)
             fake_img = G_net(z)
             output = D_net(fake_img)
             g_loss = criterion(output, real_label)
